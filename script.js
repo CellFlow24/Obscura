@@ -32,7 +32,9 @@ const sfx = {
     start: new Audio('https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3'),
     footstep: new Audio('https://assets.mixkit.co/active_storage/sfx/2679/2679-preview.mp3'),
     bgm: new Audio('https://assets.mixkit.co/active_storage/sfx/2572/2572-preview.mp3'),
-    hover: new Audio('https://assets.mixkit.co/active_storage/sfx/2573/2573-preview.mp3') 
+    hover: new Audio('https://assets.mixkit.co/active_storage/sfx/2573/2573-preview.mp3'),
+    caught: new Audio('https://assets.mixkit.co/active_storage/sfx/2832/2832-preview.mp3'), // Alert sound
+    win: new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3') // Success sound
 };
 sfx.bgm.loop = true; sfx.bgm.volume = 0.4;
 sfx.footstep.volume = 0.2; sfx.footstep.playbackRate = 1.5; sfx.hover.volume = 0.2;
@@ -82,9 +84,9 @@ images.floor.src = './Stock/Floor.png';
 images.wall.src = './Stock/Wall.png';
 images.target.src = './Stock/Target.png';
 
-const tileSize = 80;
+// ZOOM IN: Increased tile size from 80 to 120 for tighter camera perspective
+const tileSize = 120; 
 
-// Expanded Map (15x11 Grid) - Much larger to allow camera exploration!
 const level1Map = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 1],
@@ -99,30 +101,42 @@ const level1Map = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
 
-// Camera offsets
-let cameraX = 0;
-let cameraY = 0;
+let cameraX = 0, cameraY = 0;
+let targetPos = { x: 0, y: 0 }; // Store the final file location
 
-const player = { x: 0, y: 0, targetX: 0, targetY: 0, speed: 5, angle: 0, isMoving: false, radius: 25 };
+const player = { x: 0, y: 0, targetX: 0, targetY: 0, speed: 7, angle: 0, isMoving: false, radius: 30 };
 const enemy = { 
-    x: 0, y: 0, angle: 0, speed: 2, 
+    x: 0, y: 0, angle: 0, speed: 3, 
+    visionRange: 350,
+    fov: Math.PI / 3.5, // Tighter, triangular vision cone
     patrolIndex: 0,
-    waypoints: [
-        {x: 7.5 * tileSize, y: 5.5 * tileSize},  // Center
-        {x: 11.5 * tileSize, y: 5.5 * tileSize}  // Move Right
-    ]
+    waypoints: []
 };
 
 function initLevel1() {
-    // Top left start
     player.x = 1.5 * tileSize;
     player.y = 1.5 * tileSize;
     player.targetX = player.x;
     player.targetY = player.y;
 
-    // Middle enemy
     enemy.x = 7.5 * tileSize;
     enemy.y = 5.5 * tileSize;
+    enemy.waypoints = [
+        {x: 7.5 * tileSize, y: 5.5 * tileSize},
+        {x: 7.5 * tileSize, y: 1.5 * tileSize}, // Patrol Up
+        {x: 11.5 * tileSize, y: 1.5 * tileSize}, // Patrol Right
+        {x: 7.5 * tileSize, y: 5.5 * tileSize}  // Return
+    ];
+
+    // Find the Target File Location automatically
+    for (let r = 0; r < level1Map.length; r++) {
+        for (let c = 0; c < level1Map[r].length; c++) {
+            if (level1Map[r][c] === 2) {
+                targetPos.x = (c * tileSize) + (tileSize/2);
+                targetPos.y = (r * tileSize) + (tileSize/2);
+            }
+        }
+    }
 }
 
 // ==========================================
@@ -135,24 +149,34 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// Adjusted for Camera: Click coordinates + Camera coordinates = World coordinates
 canvas.addEventListener('pointerdown', (e) => {
     player.targetX = e.clientX + cameraX; 
     player.targetY = e.clientY + cameraY;
 });
 
-// Collision Helper: Checks if a specific point is inside a Wall block (1)
 function isWall(x, y) {
     let col = Math.floor(x / tileSize);
     let row = Math.floor(y / tileSize);
     if (row >= 0 && row < level1Map.length && col >= 0 && col < level1Map[0].length) {
         return level1Map[row][col] === 1;
     }
-    return true; // Map boundaries act as walls
+    return true; 
+}
+
+// Line of Sight Logic: Checks if a straight line hits a wall
+function checkLineOfSight(x1, y1, x2, y2) {
+    const dist = Math.hypot(x2 - x1, y2 - y1);
+    const steps = dist / 10;
+    for (let i = 0; i < steps; i++) {
+        const curX = x1 + (x2 - x1) * (i / steps);
+        const curY = y1 + (y2 - y1) * (i / steps);
+        if (isWall(curX, curY)) return false; // Wall blocking view
+    }
+    return true; // Clear view
 }
 
 // ==========================================
-// 7. GAME LOOP & RENDERING
+// 7. GAME LOOP & LOGIC
 // ==========================================
 function gameLoop() {
     if (!gameRunning) return;
@@ -171,58 +195,100 @@ function updateLogic() {
         const vx = (dx / distance) * player.speed;
         const vy = (dy / distance) * player.speed;
         
-        // Sliding Collision: Allow X movement if X is clear, allow Y movement if Y is clear
-        if (!isWall(player.x + vx + (Math.sign(vx) * player.radius), player.y)) {
-            player.x += vx;
-        }
-        if (!isWall(player.x, player.y + vy + (Math.sign(vy) * player.radius))) {
-            player.y += vy;
-        }
+        if (!isWall(player.x + vx + (Math.sign(vx) * player.radius), player.y)) player.x += vx;
+        if (!isWall(player.x, player.y + vy + (Math.sign(vy) * player.radius))) player.y += vy;
         
-        player.angle = Math.atan2(dy, dx) - (Math.PI / 2);
+        player.angle = Math.atan2(dy, dx) - (Math.PI / 2); // Corrected facing angle
         if (!player.isMoving) { sfx.footstep.play(); player.isMoving = true; }
     } else {
         player.isMoving = false; sfx.footstep.pause();
     }
 
-    // 2. Camera Follow Logic (Keep player in center of screen)
+    // 2. Camera Follow
     cameraX = player.x - canvas.width / 2;
     cameraY = player.y - canvas.height / 2;
 
-    // 3. Enemy Patrol AI
+    // 3. Enemy AI Patrol
     const targetWp = enemy.waypoints[enemy.patrolIndex];
     const edx = targetWp.x - enemy.x;
     const edy = targetWp.y - enemy.y;
     const eDist = Math.hypot(edx, edy);
 
     if (eDist > enemy.speed) {
-        // Walk towards waypoint
         enemy.x += (edx / eDist) * enemy.speed;
         enemy.y += (edy / eDist) * enemy.speed;
-        // Face the direction he is walking
-        enemy.angle = Math.atan2(edy, edx) + (Math.PI / 2);
+        // Smooth angle turning
+        const targetAngle = Math.atan2(edy, edx);
+        enemy.angle = targetAngle; 
     } else {
-        // Reached waypoint, switch to the next one
         enemy.patrolIndex = (enemy.patrolIndex + 1) % enemy.waypoints.length;
+    }
+
+    // 4. DETECTION SYSTEM: Is player in light?
+    const distToPlayer = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+    if (distToPlayer < enemy.visionRange) {
+        let angleToPlayer = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+        
+        // Normalize angles to compare correctly
+        let angleDiff = Math.abs(angleToPlayer - enemy.angle);
+        if (angleDiff > Math.PI) angleDiff = (2 * Math.PI) - angleDiff;
+
+        if (angleDiff < enemy.fov / 2) {
+            // Player is in the cone angle. Is a wall blocking?
+            if (checkLineOfSight(enemy.x, enemy.y, player.x, player.y)) {
+                triggerGameOver();
+            }
+        }
+    }
+
+    // 5. WIN SYSTEM: Did player touch the target?
+    const distToTarget = Math.hypot(targetPos.x - player.x, targetPos.y - player.y);
+    if (distToTarget < tileSize / 1.5) {
+        triggerWin();
     }
 }
 
-function drawGraphics() {
-    // Clear screen
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+function triggerGameOver() {
+    sfx.footstep.pause();
+    sfx.caught.play();
+    alert("DETECTED! Operation Failed. Retreat and try again.");
+    initLevel1(); // Reset positions
+}
 
-    // Apply Camera Translation to EVERYTHING drawn below
+function triggerWin() {
+    sfx.footstep.pause();
+    sfx.win.play();
+    alert("DOCUMENT SECURED. Proceeding to extraction.");
+    // Temporarily reset to start until Level 2 map is built
+    initLevel1();
+}
+
+// ==========================================
+// 8. RENDERING
+// ==========================================
+function drawGraphics() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
     ctx.translate(-cameraX, -cameraY);
 
-    // 1. Draw Floor Background (Only drawing what's visible on screen)
     if (images.floor.complete) {
         const pattern = ctx.createPattern(images.floor, 'repeat');
         ctx.fillStyle = pattern;
         ctx.fillRect(cameraX, cameraY, canvas.width, canvas.height);
     }
 
-    // 2. Draw Maze Layout
+    // Draw the UI Path Indicator (Orange dotted line)
+    if (player.isMoving) {
+        ctx.beginPath();
+        ctx.setLineDash([10, 15]);
+        ctx.moveTo(player.x, player.y);
+        ctx.lineTo(player.targetX, player.targetY);
+        ctx.strokeStyle = 'rgba(255, 165, 0, 0.6)'; // Orange path
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset
+    }
+
     for (let row = 0; row < level1Map.length; row++) {
         for (let col = 0; col < level1Map[row].length; col++) {
             const tile = level1Map[row][col];
@@ -230,75 +296,64 @@ function drawGraphics() {
             const tileY = row * tileSize;
 
             if (tile === 1 && images.wall.complete) {
-                // Overlaps the tiles by 8 pixels to connect the metal edges
+                // Seamless overlap: Drawing slightly larger to fuse edges
                 ctx.drawImage(images.wall, tileX - 4, tileY - 4, tileSize + 8, tileSize + 8);
             } else if (tile === 2 && images.target.complete) {
-                ctx.drawImage(images.target, tileX + 16, tileY + 16, tileSize - 32, tileSize - 32);
+                ctx.drawImage(images.target, tileX + 30, tileY + 30, tileSize - 60, tileSize - 60);
             }
         }
     }
 
-    // 3. Draw Enemy Realistic Vision Cone (Raycasting)
-    drawVisionCone(enemy.x, enemy.y, enemy.angle + (Math.PI/2));
+    drawVisionCone(enemy.x, enemy.y, enemy.angle);
 
-    // 4. Draw Enemy Character
     if (images.enemy.complete) {
         ctx.save();
         ctx.translate(enemy.x, enemy.y);
-        ctx.rotate(enemy.angle);
-        ctx.drawImage(images.enemy, -40, -40, 80, 80);
+        ctx.rotate(enemy.angle + (Math.PI/2));
+        ctx.drawImage(images.enemy, -50, -50, 100, 100);
         ctx.restore();
     }
 
-    // 5. Draw Player Character
     if (images.player.complete) {
         ctx.save();
         ctx.translate(player.x, player.y);
-        ctx.rotate(player.angle);
-        ctx.drawImage(images.player, -40, -40, 80, 80);
+        ctx.rotate(player.angle + (Math.PI/2));
+        ctx.drawImage(images.player, -50, -50, 100, 100);
         ctx.restore();
     }
 
-    // Restore standard screen coordinates for next frame
     ctx.restore();
 }
 
-// Engine Magic: Raycasting checks lines extending from the enemy. If it hits a wall, it stops drawing the light.
 function drawVisionCone(startX, startY, baseAngle) {
-    const range = 350; 
-    const fov = Math.PI / 2; // 90 degree field of view
-    const numRays = 60; // How many light beams to cast (Higher = smoother shadow, lower = better performance)
+    const range = enemy.visionRange; 
+    const fov = enemy.fov; 
+    const numRays = 40; // Reduced for performance, sharp enough for triangle
     
     ctx.save();
-    
-    // Create the glowing gradient
     const gradient = ctx.createRadialGradient(startX, startY, 0, startX, startY, range);
-    gradient.addColorStop(0, 'rgba(0, 229, 255, 0.4)');
+    gradient.addColorStop(0, 'rgba(0, 229, 255, 0.45)');
     gradient.addColorStop(1, 'rgba(0, 229, 255, 0)');
     ctx.fillStyle = gradient;
     
     ctx.beginPath();
     ctx.moveTo(startX, startY);
     
-    // Cast rays in an arc
     for (let i = 0; i <= numRays; i++) {
         let rayAngle = (baseAngle - fov / 2) + (i * (fov / numRays));
         let rayX = startX;
         let rayY = startY;
         let distance = 0;
-        let stepSize = 10;
+        let stepSize = 15;
         
-        // Travel outward until we hit a wall or max range
         while (distance < range) {
             rayX += Math.cos(rayAngle) * stepSize;
             rayY += Math.sin(rayAngle) * stepSize;
             distance += stepSize;
             
-            // If the light hits a crate (1), stop traveling
             if (isWall(rayX, rayY)) {
-                // Push the ray 25 pixels deeper into the wall to close the visual gap
-                rayX += Math.cos(rayAngle) * 25;
-                rayY += Math.sin(rayAngle) * 25;
+                rayX += Math.cos(rayAngle) * 15; // Push into wall to close gaps
+                rayY += Math.sin(rayAngle) * 15;
                 break; 
             }
         }
