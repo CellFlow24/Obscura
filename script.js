@@ -1,15 +1,31 @@
 // ==========================================
-// 1. GRABBING THE SCREEN ELEMENTS
+// 1. DOM ELEMENTS & STATE
 // ==========================================
 const startScreen = document.getElementById('start-screen');
 const startBtn = document.getElementById('start-btn');
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
+const titleContainer = document.querySelector('.title-container');
 
 let gameRunning = false;
 
 // ==========================================
-// 2. AUDIO SYSTEM (The new background music)
+// 2. PARALLAX UI EFFECT (Mouse Tracking)
+// ==========================================
+document.addEventListener('mousemove', (e) => {
+    if (!gameRunning && titleContainer && startBtn) {
+        // Calculate mouse position relative to center of screen
+        const x = (window.innerWidth / 2 - e.pageX) / 45;
+        const y = (window.innerHeight / 2 - e.pageY) / 45;
+        
+        // Move elements slightly in opposite direction of mouse
+        titleContainer.style.transform = `translate(${x}px, ${y}px)`;
+        startBtn.style.transform = `translate(${x * 1.5}px, ${y * 1.5}px)`;
+    }
+});
+
+// ==========================================
+// 3. AUDIO SYSTEM
 // ==========================================
 const sfx = {
     start: new Audio('https://assets.mixkit.co/active_storage/sfx/2018/2018-preview.mp3'),
@@ -18,89 +34,56 @@ const sfx = {
     hover: new Audio('https://assets.mixkit.co/active_storage/sfx/2573/2573-preview.mp3') 
 };
 
-sfx.bgm.loop = true;
-sfx.bgm.volume = 0.4;
-sfx.footstep.volume = 0.2;
-sfx.footstep.playbackRate = 1.5;
+sfx.bgm.loop = true; sfx.bgm.volume = 0.4;
+sfx.footstep.volume = 0.2; sfx.footstep.playbackRate = 1.5;
 sfx.hover.volume = 0.2;
 
-// Browsers require a user to click anywhere before music is allowed to play
 document.body.addEventListener('pointerdown', () => {
-    if (sfx.bgm.paused && !gameRunning) {
-        sfx.bgm.play().catch(e => console.log("Waiting for user to click..."));
-    }
+    if (sfx.bgm.paused && !gameRunning) sfx.bgm.play().catch(() => {});
 }, { once: true });
 
-// Play a beep when the mouse touches the Start Button
 startBtn.addEventListener('mouseenter', () => {
-    sfx.hover.currentTime = 0; 
-    sfx.hover.play().catch(() => {});
+    sfx.hover.currentTime = 0; sfx.hover.play().catch(() => {});
 });
 
 // ==========================================
-// 3. LOADING YOUR IMAGES
+// 4. GAME ASSETS & ENTITIES
 // ==========================================
-const images = {
-    player: new Image(),
-    enemy: new Image(),
-    floor: new Image()
-};
+const images = { player: new Image(), enemy: new Image(), floor: new Image() };
 images.player.src = './Stock/Player.png';
 images.enemy.src = './Stock/Enemy.png';
 images.floor.src = './Stock/Floor.png';
 
-// ==========================================
-// 4. GAME CHARACTERS (Where they start)
-// ==========================================
-const player = {
-    x: 0, 
-    y: 0,
-    targetX: 0,
-    targetY: 0,
-    speed: 5,
-    angle: 0,
-    isMoving: false
-};
-
-const enemy = {
-    x: 0,
-    y: 0,
-    angle: 0,
-    sweepDirection: 1
-};
+const player = { x: 0, y: 0, targetX: 0, targetY: 0, speed: 5, angle: 0, isMoving: false };
+const enemy = { x: 0, y: 0, angle: 0, sweepDirection: 1 };
 
 // ==========================================
-// 5. SCREEN SETUP & CONTROLS
+// 5. ENGINE & CONTROLS
 // ==========================================
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     
     if (!gameRunning) {
-        player.x = canvas.width / 2;
-        player.y = canvas.height / 2 + 150;
-        player.targetX = player.x;
-        player.targetY = player.y;
-        
-        enemy.x = canvas.width / 2;
-        enemy.y = canvas.height / 2 - 150;
+        player.x = canvas.width / 2; player.y = canvas.height / 2 + 150;
+        player.targetX = player.x; player.targetY = player.y;
+        enemy.x = canvas.width / 2; enemy.y = canvas.height / 2 - 150;
     }
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// Tap or Click to Move
 canvas.addEventListener('pointerdown', (e) => {
-    player.targetX = e.clientX;
-    player.targetY = e.clientY;
+    player.targetX = e.clientX; player.targetY = e.clientY;
 });
 
-// ==========================================
-// 6. THE START BUTTON ACTION
-// ==========================================
 startBtn.addEventListener('click', () => {
-    sfx.bgm.volume = 0.1; // Lower background music slightly
-    sfx.start.play(); // Play click sound
+    sfx.bgm.volume = 0.1;
+    sfx.start.play();
+    
+    // Reset parallax transform before hiding
+    titleContainer.style.transform = 'translate(0px, 0px)';
+    startBtn.style.transform = 'translate(0px, 0px)';
 
     startScreen.classList.remove('active');
     canvas.classList.add('active');
@@ -110,14 +93,12 @@ startBtn.addEventListener('click', () => {
 });
 
 // ==========================================
-// 7. THE GAME ENGINE (Runs continuously)
+// 6. GAME LOOP & RENDERING
 // ==========================================
 function gameLoop() {
     if (!gameRunning) return;
-
     updateLogic();
     drawGraphics();
-
     requestAnimationFrame(gameLoop);
 }
 
@@ -131,19 +112,13 @@ function updateLogic() {
         player.y += (dy / distance) * player.speed;
         player.angle = Math.atan2(dy, dx) + (Math.PI / 2);
         
-        if (!player.isMoving) {
-            sfx.footstep.play();
-            player.isMoving = true;
-        }
+        if (!player.isMoving) { sfx.footstep.play(); player.isMoving = true; }
     } else {
-        player.isMoving = false;
-        sfx.footstep.pause();
+        player.isMoving = false; sfx.footstep.pause();
     }
 
     enemy.angle += 0.02 * enemy.sweepDirection;
-    if (enemy.angle > 0.8 || enemy.angle < -0.8) {
-        enemy.sweepDirection *= -1;
-    }
+    if (enemy.angle > 0.8 || enemy.angle < -0.8) enemy.sweepDirection *= -1;
 }
 
 function drawGraphics() {
