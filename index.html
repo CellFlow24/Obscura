@@ -61,6 +61,23 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- The canvas and UI overlay will be injected here next -->
+    <!-- Game Canvas (Hidden until start) -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- UI Overlay: Start Screen -->
+    <div id="start-screen" class="ui-layer active">
+        <div class="title-container">
+            <img src="./Stock/logo.png" alt="Obscura" class="game-logo floating">
+            <h1 class="game-title">OBSCURA</h1>
+            <p class="game-subtitle">A Stealth Strategy by Cellflow</p>
+        </div>
+        
+        <button id="start-btn" class="cyber-button">
+            <span>START OPERATION</span>
+        </button>
+    </div>
+
+    <!-- Link the logic -->
+    <script src="script.js"></script>
 </body>
 </html>
