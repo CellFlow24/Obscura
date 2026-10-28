@@ -104,7 +104,14 @@ let cameraX = 0;
 let cameraY = 0;
 
 const player = { x: 0, y: 0, targetX: 0, targetY: 0, speed: 5, angle: 0, isMoving: false, radius: 25 };
-const enemy = { x: 0, y: 0, angle: 0, sweepDirection: 1 };
+const enemy = { 
+    x: 0, y: 0, angle: 0, speed: 2, 
+    patrolIndex: 0,
+    waypoints: [
+        {x: 7.5 * tileSize, y: 5.5 * tileSize},  // Center
+        {x: 11.5 * tileSize, y: 5.5 * tileSize}  // Move Right
+    ]
+};
 
 function initLevel1() {
     // Top left start
@@ -172,7 +179,7 @@ function updateLogic() {
             player.y += vy;
         }
         
-        player.angle = Math.atan2(dy, dx) + (Math.PI / 2);
+        player.angle = Math.atan2(dy, dx) - (Math.PI / 2);
         if (!player.isMoving) { sfx.footstep.play(); player.isMoving = true; }
     } else {
         player.isMoving = false; sfx.footstep.pause();
@@ -182,9 +189,22 @@ function updateLogic() {
     cameraX = player.x - canvas.width / 2;
     cameraY = player.y - canvas.height / 2;
 
-    // 3. Enemy Flashlight Sweep
-    enemy.angle += 0.02 * enemy.sweepDirection;
-    if (enemy.angle > 0.8 || enemy.angle < -0.8) enemy.sweepDirection *= -1;
+    // 3. Enemy Patrol AI
+    const targetWp = enemy.waypoints[enemy.patrolIndex];
+    const edx = targetWp.x - enemy.x;
+    const edy = targetWp.y - enemy.y;
+    const eDist = Math.hypot(edx, edy);
+
+    if (eDist > enemy.speed) {
+        // Walk towards waypoint
+        enemy.x += (edx / eDist) * enemy.speed;
+        enemy.y += (edy / eDist) * enemy.speed;
+        // Face the direction he is walking
+        enemy.angle = Math.atan2(edy, edx) + (Math.PI / 2);
+    } else {
+        // Reached waypoint, switch to the next one
+        enemy.patrolIndex = (enemy.patrolIndex + 1) % enemy.waypoints.length;
+    }
 }
 
 function drawGraphics() {
@@ -210,7 +230,8 @@ function drawGraphics() {
             const tileY = row * tileSize;
 
             if (tile === 1 && images.wall.complete) {
-                ctx.drawImage(images.wall, tileX, tileY, tileSize, tileSize);
+                // Overlaps the tiles by 8 pixels to connect the metal edges
+                ctx.drawImage(images.wall, tileX - 4, tileY - 4, tileSize + 8, tileSize + 8);
             } else if (tile === 2 && images.target.complete) {
                 ctx.drawImage(images.target, tileX + 16, tileY + 16, tileSize - 32, tileSize - 32);
             }
@@ -275,6 +296,9 @@ function drawVisionCone(startX, startY, baseAngle) {
             
             // If the light hits a crate (1), stop traveling
             if (isWall(rayX, rayY)) {
+                // Push the ray 25 pixels deeper into the wall to close the visual gap
+                rayX += Math.cos(rayAngle) * 25;
+                rayY += Math.sin(rayAngle) * 25;
                 break; 
             }
         }
