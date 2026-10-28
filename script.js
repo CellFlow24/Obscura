@@ -2,25 +2,33 @@
 // 1. DOM ELEMENTS & STATE
 // ==========================================
 const startScreen = document.getElementById('start-screen');
+const difficultyScreen = document.getElementById('difficulty-screen');
 const startBtn = document.getElementById('start-btn');
+const diffBtns = document.querySelectorAll('.diff-btn');
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
-const titleContainer = document.querySelector('.title-container');
+const titleContainers = document.querySelectorAll('.title-container');
 
 let gameRunning = false;
 
+// Game Progression Variables
+let currentDifficulty = 'easy';
+let currentLevel = 1;
+
 // ==========================================
-// 2. PARALLAX UI EFFECT (Mouse Tracking)
+// 2. PARALLAX UI EFFECT
 // ==========================================
 document.addEventListener('mousemove', (e) => {
-    if (!gameRunning && titleContainer && startBtn) {
-        // Calculate mouse position relative to center of screen
+    if (!gameRunning) {
         const x = (window.innerWidth / 2 - e.pageX) / 45;
         const y = (window.innerHeight / 2 - e.pageY) / 45;
         
-        // Move elements slightly in opposite direction of mouse
-        titleContainer.style.transform = `translate(${x}px, ${y}px)`;
-        startBtn.style.transform = `translate(${x * 1.5}px, ${y * 1.5}px)`;
+        titleContainers.forEach(container => {
+            container.style.transform = `translate(${x}px, ${y}px)`;
+        });
+        if(startScreen.classList.contains('active')) {
+            startBtn.style.transform = `translate(${x * 1.5}px, ${y * 1.5}px)`;
+        }
     }
 });
 
@@ -42,12 +50,49 @@ document.body.addEventListener('pointerdown', () => {
     if (sfx.bgm.paused && !gameRunning) sfx.bgm.play().catch(() => {});
 }, { once: true });
 
-startBtn.addEventListener('mouseenter', () => {
-    sfx.hover.currentTime = 0; sfx.hover.play().catch(() => {});
+// Attach hover sound to all cyber buttons
+document.querySelectorAll('.cyber-button').forEach(btn => {
+    btn.addEventListener('mouseenter', () => {
+        sfx.hover.currentTime = 0; sfx.hover.play().catch(() => {});
+    });
 });
 
 // ==========================================
-// 4. GAME ASSETS & ENTITIES
+// 4. MENU FLOW LOGIC
+// ==========================================
+// Step 1: Main Start Button -> Difficulty Screen
+startBtn.addEventListener('click', () => {
+    sfx.start.currentTime = 0;
+    sfx.start.play();
+    
+    startScreen.classList.remove('active');
+    difficultyScreen.classList.add('active');
+});
+
+// Step 2: Select Difficulty -> Start Engine (Level 1)
+diffBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        sfx.bgm.volume = 0.1;
+        sfx.start.currentTime = 0;
+        sfx.start.play();
+        
+        // Save the chosen difficulty
+        currentDifficulty = e.currentTarget.dataset.diff;
+        console.log(`Starting Level ${currentLevel} on ${currentDifficulty} mode`);
+        
+        // Reset transforms
+        titleContainers.forEach(container => container.style.transform = 'translate(0,0)');
+        
+        difficultyScreen.classList.remove('active');
+        canvas.classList.add('active');
+        
+        gameRunning = true;
+        requestAnimationFrame(gameLoop);
+    });
+});
+
+// ==========================================
+// 5. GAME ASSETS & ENTITIES
 // ==========================================
 const images = { player: new Image(), enemy: new Image(), floor: new Image() };
 images.player.src = './Stock/Player.png';
@@ -58,7 +103,7 @@ const player = { x: 0, y: 0, targetX: 0, targetY: 0, speed: 5, angle: 0, isMovin
 const enemy = { x: 0, y: 0, angle: 0, sweepDirection: 1 };
 
 // ==========================================
-// 5. ENGINE & CONTROLS
+// 6. ENGINE & CONTROLS
 // ==========================================
 function resizeCanvas() {
     canvas.width = window.innerWidth;
@@ -77,23 +122,8 @@ canvas.addEventListener('pointerdown', (e) => {
     player.targetX = e.clientX; player.targetY = e.clientY;
 });
 
-startBtn.addEventListener('click', () => {
-    sfx.bgm.volume = 0.1;
-    sfx.start.play();
-    
-    // Reset parallax transform before hiding
-    titleContainer.style.transform = 'translate(0px, 0px)';
-    startBtn.style.transform = 'translate(0px, 0px)';
-
-    startScreen.classList.remove('active');
-    canvas.classList.add('active');
-    
-    gameRunning = true;
-    requestAnimationFrame(gameLoop);
-});
-
 // ==========================================
-// 6. GAME LOOP & RENDERING
+// 7. GAME LOOP & RENDERING
 // ==========================================
 function gameLoop() {
     if (!gameRunning) return;
