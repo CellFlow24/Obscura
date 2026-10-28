@@ -27,7 +27,7 @@
     <meta property="twitter:image" content="./Stock/logo.png">
 
     <!-- PWA & Mobile App Optimization -->
-    <meta name="theme-color" content="#0f172a"> 
+    <meta name="theme-color" content="#050811"> 
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="icon" type="image/png" href="./Stock/logo.png">
@@ -57,6 +57,11 @@
     }
     </script>
 
+    <!-- Google Fonts for AAA Game Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+
     <!-- Base Stylesheet -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -66,26 +71,13 @@
 
     <!-- UI Overlay: Start Screen -->
     <div id="start-screen" class="ui-layer active">
-        <div class="title-container">
-            <img src="./Stock/logo.png" alt="Obscura" class="game-logo floating">
-            <h1 class="game-title">OBSCURA</h1>
-            <p class="game-subtitle">A Stealth Strategy by Cellflow</p>
-        </div>
-        
-        <button id="start-btn" class="cyber-button">
-            <span>START OPERATION</span>
-        </button>
-    </div>
-
-    <!-- UI Overlay: Start Screen -->
-    <div id="start-screen" class="ui-layer active">
-        <!-- New: Surveillance Scanline Effect -->
-        <div class="scanlines"></div>
+        <!-- The animated tactical grid background -->
+        <div class="tactical-grid"></div>
 
         <div class="title-container">
             <img src="./Stock/logo.png" alt="Obscura" class="game-logo floating pulse-glow">
             <h1 class="game-title">OBSCURA</h1>
-            <p class="game-subtitle">A Stealth Strategy by Cellflow</p>
+            <p class="game-subtitle">A STEALTH STRATEGY BY CELLFLOW</p>
         </div>
         
         <button id="start-btn" class="cyber-button">
