@@ -98,3 +98,28 @@ body, html {
 .cyber-button:hover::before {
     transform: scaleX(1); transform-origin: left;
 }
+
+/* --- Difficulty Screen Layout --- */
+.difficulty-options {
+    display: flex;
+    gap: 20px;
+    position: relative;
+    z-index: 2;
+}
+
+.diff-title {
+    margin-bottom: 3rem;
+}
+
+.diff-btn {
+    padding: 15px 30px;
+    font-size: 1rem;
+}
+
+/* Make buttons stack on mobile phones */
+@media (max-width: 768px) {
+    .difficulty-options {
+        flex-direction: column;
+        width: 80%;
+    }
+}
