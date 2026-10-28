@@ -85,6 +85,21 @@
         </button>
     </div>
 
+    <!-- UI Overlay: Difficulty Selection (Hidden initially) -->
+    <div id="difficulty-screen" class="ui-layer">
+        <div class="tactical-grid"></div>
+        <div class="title-container diff-title">
+            <h2 class="game-title" style="font-size: 3rem;">SELECT DIFFICULTY</h2>
+            <p class="game-subtitle">LEVEL 1 / 10</p>
+        </div>
+        
+        <div class="difficulty-options">
+            <button class="cyber-button diff-btn" data-diff="easy"><span>EASY</span></button>
+            <button class="cyber-button diff-btn" data-diff="medium"><span>MEDIUM</span></button>
+            <button class="cyber-button diff-btn" data-diff="hard"><span>HARD</span></button>
+        </div>
+    </div>
+
     <!-- Link the logic -->
     <script src="script.js"></script>
 </body>
