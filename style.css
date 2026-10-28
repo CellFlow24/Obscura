@@ -124,3 +124,59 @@ body, html {
     color: var(--dark-bg);
     box-shadow: 0 0 20px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.4);
 }
+
+/* --- Surveillance Scanline Overlay --- */
+.scanlines {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,255,255,0) 50%,
+        rgba(0,0,0,0.2) 50%,
+        rgba(0,0,0,0.2)
+    );
+    background-size: 100% 4px;
+    z-index: -1; /* Keeps it behind the text/buttons */
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+/* --- Dynamic Logo Glow --- */
+.pulse-glow {
+    animation: float 4s ease-in-out infinite, pulseGlow 3s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+    0%, 100% { filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.4)); }
+    50% { filter: drop-shadow(0 0 35px rgba(0, 229, 255, 0.8)); }
+}
+
+/* --- Button Shine Effect --- */
+.cyber-button {
+    /* Keep your existing .cyber-button properties, just ensure this is added: */
+    position: relative;
+    overflow: hidden;
+}
+
+.cyber-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(to right, rgba(0,229,255,0) 0%, rgba(0,229,255,0.4) 50%, rgba(0,229,255,0) 100%);
+    transform: skewX(-25deg);
+    animation: sweepShine 3s infinite;
+    pointer-events: none;
+}
+
+@keyframes sweepShine {
+    0% { left: -100%; }
+    20% { left: 200%; }
+    100% { left: 200%; }
+}
