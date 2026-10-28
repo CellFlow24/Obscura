@@ -108,11 +108,11 @@ const player = { x: 0, y: 0, path: [], speed: 7, angle: 0, isMoving: false, radi
 const enemy = { 
     x: 0, y: 0, angle: 0, speed: 3, 
     visionRange: 350,
-    fov: Math.PI / 3.5, // Tighter, triangular vision cone
+    fov: Math.PI / 3.5,
     patrolIndex: 0,
-    waypoints: []
+    waypoints: [],
+    path: [] // New: The enemy now has a path array just like the player!
 };
-
 function initLevel1() {
     player.x = 1.5 * tileSize;
     player.y = 1.5 * tileSize;
@@ -216,22 +216,36 @@ function updateLogic() {
     cameraX = player.x - canvas.width / 2;
     cameraY = player.y - canvas.height / 2;
 
-    // 3. Enemy AI Patrol
-    const targetWp = enemy.waypoints[enemy.patrolIndex];
-    const edx = targetWp.x - enemy.x;
-    const edy = targetWp.y - enemy.y;
-    const eDist = Math.hypot(edx, edy);
-
-    if (eDist > enemy.speed) {
-        enemy.x += (edx / eDist) * enemy.speed;
-        enemy.y += (edy / eDist) * enemy.speed;
-        // Smooth angle turning
-        const targetAngle = Math.atan2(edy, edx);
-        enemy.angle = targetAngle; 
-    } else {
+    // 3. Smart Enemy AI Patrol (Pathfinding)
+    // If the enemy has nowhere to go, find the path to the next waypoint
+    if (!enemy.path || enemy.path.length === 0) {
         enemy.patrolIndex = (enemy.patrolIndex + 1) % enemy.waypoints.length;
+        const targetWp = enemy.waypoints[enemy.patrolIndex];
+        // Calculate the grid path avoiding walls
+        enemy.path = findPath(enemy.x, enemy.y, targetWp.x, targetWp.y);
     }
 
+    // Move the enemy along their generated path
+    if (enemy.path && enemy.path.length > 0) {
+        const targetNode = enemy.path[0];
+        const edx = targetNode.x - enemy.x;
+        const edy = targetNode.y - enemy.y;
+        const eDist = Math.hypot(edx, edy);
+
+        if (eDist > enemy.speed) {
+            enemy.x += (edx / eDist) * enemy.speed;
+            enemy.y += (edy / eDist) * enemy.speed;
+            
+            // Turn face towards movement direction
+            enemy.angle = Math.atan2(edy, edx); 
+        } else {
+            // Reached current tile, move to the next one
+            enemy.x = targetNode.x;
+            enemy.y = targetNode.y;
+            enemy.path.shift();
+        }
+    }
+    
     // 4. DETECTION SYSTEM: Is player in light?
     const distToPlayer = Math.hypot(player.x - enemy.x, player.y - enemy.y);
     if (distToPlayer < enemy.visionRange) {
@@ -330,8 +344,8 @@ function drawGraphics() {
     if (images.player.complete) {
         ctx.save();
         ctx.translate(player.x, player.y);
-        // Offset by +90 degrees (Math.PI/2) because your player PNG natively faces UP
-        ctx.rotate(player.angle + (Math.PI / 2));
+        // Fix: Changed to - (Math.PI / 2) because the player PNG actually faces DOWN
+        ctx.rotate(player.angle - (Math.PI / 2));
         ctx.drawImage(images.player, -50, -50, 100, 100);
         ctx.restore();
     }
