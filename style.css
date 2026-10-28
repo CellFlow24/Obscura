@@ -1,182 +1,100 @@
-/* --- Base & Variables --- */
 :root {
     --cellflow-cyan: #00e5ff;
     --cellflow-blue: #0055ff;
-    --dark-bg: #0b0c10;
+    --dark-bg: #050811;
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    user-select: none; /* Prevents text highlighting while tapping */
-}
+* { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
 
 body, html {
-    width: 100%;
-    height: 100%;
+    width: 100%; height: 100%; 
     background-color: var(--dark-bg);
-    /* Uses your floor tile with a radial shadow to create a flashlight/spotlight vibe */
-    background-image: radial-gradient(circle at center, rgba(11,12,16,0.4) 0%, rgba(11,12,16,0.95) 100%), url('./Stock/Floor.png');
-    background-repeat: repeat;
-    background-size: 256px;
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    overflow: hidden; /* No scrolling */
+    overflow: hidden;
+    font-family: 'Rajdhani', sans-serif;
 }
 
-/* --- Canvas --- */
 #game-canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-    opacity: 0;
-    transition: opacity 1s ease-in-out;
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 1; opacity: 0; transition: opacity 1s ease-in-out;
 }
+#game-canvas.active { opacity: 1; }
 
-#game-canvas.active {
-    opacity: 1;
-}
-
-/* --- UI Overlay (Start Screen) --- */
+/* --- UI Overlay & Background FX --- */
 .ui-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px); /* Premium glass effect */
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    background: radial-gradient(circle at center, rgba(0, 229, 255, 0.05) 0%, rgba(5, 8, 17, 0.95) 100%);
     transition: opacity 0.8s ease, visibility 0.8s;
 }
+.ui-layer:not(.active) { opacity: 0; visibility: hidden; }
 
-.ui-layer:not(.active) {
-    opacity: 0;
-    visibility: hidden;
+/* 3D Animated Tactical Grid */
+.tactical-grid {
+    position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background-image: 
+        linear-gradient(rgba(0, 229, 255, 0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.07) 1px, transparent 1px);
+    background-size: 50px 50px;
+    transform: perspective(600px) rotateX(60deg) translateY(0);
+    animation: gridScroll 15s linear infinite;
+    z-index: -1; pointer-events: none;
+}
+@keyframes gridScroll {
+    0% { transform: perspective(600px) rotateX(60deg) translateY(0); }
+    100% { transform: perspective(600px) rotateX(60deg) translateY(50px); }
 }
 
-/* --- Typography & Logo Animation --- */
+/* --- Typography --- */
 .title-container {
-    text-align: center;
-    margin-bottom: 3rem;
+    text-align: center; margin-bottom: 4rem; position: relative; z-index: 2;
+    transition: transform 0.1s ease-out; /* For JS Parallax */
 }
 
 .game-logo {
-    width: 120px;
-    height: auto;
-    margin-bottom: 1rem;
-    filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.5));
-}
-
-.game-title {
-    color: #ffffff;
-    font-size: 3.5rem;
-    letter-spacing: 8px;
-    text-transform: uppercase;
-    text-shadow: 0 0 10px var(--cellflow-blue), 0 0 20px var(--cellflow-cyan);
-    margin-bottom: 0.5rem;
-}
-
-.game-subtitle {
-    color: #8892b0;
-    font-size: 1rem;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-}
-
-/* Floating Animation for Logo */
-.floating {
+    width: 130px; margin-bottom: 1.5rem;
+    filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.6));
     animation: float 4s ease-in-out infinite;
 }
 
+.game-title {
+    font-family: 'Orbitron', sans-serif; color: #ffffff;
+    font-size: 4.5rem; font-weight: 900; letter-spacing: 15px; margin-bottom: 0.5rem;
+    text-shadow: 0 0 15px rgba(0, 229, 255, 0.5), 0 0 30px rgba(0, 85, 255, 0.8);
+}
+
+.game-subtitle {
+    color: var(--cellflow-cyan); font-size: 1.2rem; font-weight: 700;
+    letter-spacing: 6px; opacity: 0.85;
+}
+
 @keyframes float {
-    0% { transform: translateY(0px); }
+    0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-15px); }
-    100% { transform: translateY(0px); }
 }
 
-/* --- Premium Start Button --- */
+/* --- Premium Cyber Button --- */
 .cyber-button {
-    background: transparent;
-    border: 2px solid var(--cellflow-cyan);
-    color: var(--cellflow-cyan);
-    font-size: 1.2rem;
-    font-weight: bold;
-    letter-spacing: 2px;
-    padding: 15px 40px;
-    border-radius: 4px;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
+    position: relative; z-index: 2;
+    background: rgba(0, 229, 255, 0.05); border: none;
+    color: var(--cellflow-cyan); font-family: 'Orbitron', sans-serif; 
+    font-size: 1.2rem; font-weight: 700; letter-spacing: 3px;
+    padding: 20px 60px; cursor: pointer;
+    /* Angled Sci-Fi Corners */
+    clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+    box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.2);
     transition: all 0.3s ease;
-    box-shadow: 0 0 10px rgba(0, 229, 255, 0.2), inset 0 0 10px rgba(0, 229, 255, 0.1);
-}
-
-.cyber-button:hover, .cyber-button:active {
-    background: var(--cellflow-cyan);
-    color: var(--dark-bg);
-    box-shadow: 0 0 20px rgba(0, 229, 255, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.4);
-}
-
-/* --- Surveillance Scanline Overlay --- */
-.scanlines {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-        to bottom,
-        rgba(255,255,255,0),
-        rgba(255,255,255,0) 50%,
-        rgba(0,0,0,0.2) 50%,
-        rgba(0,0,0,0.2)
-    );
-    background-size: 100% 4px;
-    z-index: -1; /* Keeps it behind the text/buttons */
-    pointer-events: none;
-    opacity: 0.6;
-}
-
-/* --- Dynamic Logo Glow --- */
-.pulse-glow {
-    animation: float 4s ease-in-out infinite, pulseGlow 3s ease-in-out infinite;
-}
-
-@keyframes pulseGlow {
-    0%, 100% { filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.4)); }
-    50% { filter: drop-shadow(0 0 35px rgba(0, 229, 255, 0.8)); }
-}
-
-/* --- Button Shine Effect --- */
-.cyber-button {
-    /* Keep your existing .cyber-button properties, just ensure this is added: */
-    position: relative;
-    overflow: hidden;
 }
 
 .cyber-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 50%;
-    height: 100%;
-    background: linear-gradient(to right, rgba(0,229,255,0) 0%, rgba(0,229,255,0.4) 50%, rgba(0,229,255,0) 100%);
-    transform: skewX(-25deg);
-    animation: sweepShine 3s infinite;
-    pointer-events: none;
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: var(--cellflow-cyan); z-index: -1;
+    transform: scaleX(0); transform-origin: right; transition: transform 0.4s ease;
 }
 
-@keyframes sweepShine {
-    0% { left: -100%; }
-    20% { left: 200%; }
-    100% { left: 200%; }
+.cyber-button:hover {
+    color: var(--dark-bg); box-shadow: 0 0 30px rgba(0, 229, 255, 0.6);
+}
+
+.cyber-button:hover::before {
+    transform: scaleX(1); transform-origin: left;
 }
