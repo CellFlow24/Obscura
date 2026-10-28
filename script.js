@@ -104,7 +104,7 @@ const level1Map = [
 let cameraX = 0, cameraY = 0;
 let targetPos = { x: 0, y: 0 }; // Store the final file location
 
-const player = { x: 0, y: 0, targetX: 0, targetY: 0, speed: 7, angle: 0, isMoving: false, radius: 30 };
+const player = { x: 0, y: 0, path: [], speed: 7, angle: 0, isMoving: false, radius: 30 };
 const enemy = { 
     x: 0, y: 0, angle: 0, speed: 3, 
     visionRange: 350,
@@ -150,8 +150,10 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 canvas.addEventListener('pointerdown', (e) => {
-    player.targetX = e.clientX + cameraX; 
-    player.targetY = e.clientY + cameraY;
+    const clickX = e.clientX + cameraX; 
+    const clickY = e.clientY + cameraY;
+    // Generate the step-by-step route
+    player.path = findPath(player.x, player.y, clickX, clickY);
 });
 
 function isWall(x, y) {
@@ -186,20 +188,26 @@ function gameLoop() {
 }
 
 function updateLogic() {
-    // 1. Player Movement & Collision
-    const dx = player.targetX - player.x;
-    const dy = player.targetY - player.y;
-    const distance = Math.hypot(dx, dy);
+    // 1. Player Pathfinding Movement
+    if (player.path.length > 0) {
+        const targetNode = player.path[0];
+        const dx = targetNode.x - player.x;
+        const dy = targetNode.y - player.y;
+        const distance = Math.hypot(dx, dy);
 
-    if (distance > player.speed) {
-        const vx = (dx / distance) * player.speed;
-        const vy = (dy / distance) * player.speed;
-        
-        if (!isWall(player.x + vx + (Math.sign(vx) * player.radius), player.y)) player.x += vx;
-        if (!isWall(player.x, player.y + vy + (Math.sign(vy) * player.radius))) player.y += vy;
-        
-        player.angle = Math.atan2(dy, dx) - (Math.PI / 2); // Corrected facing angle
-        if (!player.isMoving) { sfx.footstep.play(); player.isMoving = true; }
+        if (distance > player.speed) {
+            player.x += (dx / distance) * player.speed;
+            player.y += (dy / distance) * player.speed;
+            
+            // True movement angle
+            player.angle = Math.atan2(dy, dx); 
+            if (!player.isMoving) { sfx.footstep.play(); player.isMoving = true; }
+        } else {
+            // Reached current tile, move to next one in the array
+            player.x = targetNode.x;
+            player.y = targetNode.y;
+            player.path.shift(); 
+        }
     } else {
         player.isMoving = false; sfx.footstep.pause();
     }
@@ -277,18 +285,21 @@ function drawGraphics() {
         ctx.fillRect(cameraX, cameraY, canvas.width, canvas.height);
     }
 
-    // Draw the UI Path Indicator (Orange dotted line)
-    if (player.isMoving) {
+    // Draw the UI Path Indicator
+    if (player.path.length > 0) {
         ctx.beginPath();
         ctx.setLineDash([10, 15]);
         ctx.moveTo(player.x, player.y);
-        ctx.lineTo(player.targetX, player.targetY);
-        ctx.strokeStyle = 'rgba(255, 165, 0, 0.6)'; // Orange path
+        for (let node of player.path) {
+            ctx.lineTo(node.x, node.y);
+        }
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.6)'; // Switched to Cellflow Cyan
         ctx.lineWidth = 4;
         ctx.stroke();
-        ctx.setLineDash([]); // Reset
+        ctx.setLineDash([]);
     }
 
+    // Draw the walls and target (Keep your existing loop here)
     for (let row = 0; row < level1Map.length; row++) {
         for (let col = 0; col < level1Map[row].length; col++) {
             const tile = level1Map[row][col];
@@ -304,12 +315,14 @@ function drawGraphics() {
         }
     }
 
+    // Draw Vision Cone based on true movement angle
     drawVisionCone(enemy.x, enemy.y, enemy.angle);
 
     if (images.enemy.complete) {
         ctx.save();
         ctx.translate(enemy.x, enemy.y);
-        ctx.rotate(enemy.angle + (Math.PI/2));
+        // Offset by +90 degrees (Math.PI/2) because your enemy PNG natively faces DOWN
+        ctx.rotate(enemy.angle - (Math.PI / 2)); 
         ctx.drawImage(images.enemy, -50, -50, 100, 100);
         ctx.restore();
     }
@@ -317,7 +330,8 @@ function drawGraphics() {
     if (images.player.complete) {
         ctx.save();
         ctx.translate(player.x, player.y);
-        ctx.rotate(player.angle + (Math.PI/2));
+        // Offset by +90 degrees (Math.PI/2) because your player PNG natively faces UP
+        ctx.rotate(player.angle + (Math.PI / 2));
         ctx.drawImage(images.player, -50, -50, 100, 100);
         ctx.restore();
     }
@@ -362,4 +376,50 @@ function drawVisionCone(startX, startY, baseAngle) {
     ctx.closePath();
     ctx.fill();
     ctx.restore();
+}
+
+// --- SMART PATHFINDING ALGORITHM ---
+function findPath(startPixX, startPixY, targetPixX, targetPixY) {
+    let startCol = Math.floor(startPixX / tileSize);
+    let startRow = Math.floor(startPixY / tileSize);
+    let targetCol = Math.floor(targetPixX / tileSize);
+    let targetRow = Math.floor(targetPixY / tileSize);
+
+    // Stop if clicked outside map or on a wall
+    if (targetRow < 0 || targetRow >= level1Map.length || targetCol < 0 || targetCol >= level1Map[0].length) return [];
+    if (level1Map[targetRow][targetCol] === 1) return []; 
+
+    let queue = [{ r: startRow, c: startCol, path: [] }];
+    let visited = new Set();
+    visited.add(`${startRow},${startCol}`);
+
+    let dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]]; // Up, Down, Left, Right
+
+    while (queue.length > 0) {
+        let curr = queue.shift();
+
+        if (curr.r === targetRow && curr.c === targetCol) {
+            // Convert grid path back to screen pixel coordinates (centered in tiles)
+            return curr.path.map(p => ({
+                x: (p.c * tileSize) + (tileSize / 2),
+                y: (p.r * tileSize) + (tileSize / 2)
+            }));
+        }
+
+        for (let d of dirs) {
+            let nr = curr.r + d[0];
+            let nc = curr.c + d[1];
+
+            if (nr >= 0 && nr < level1Map.length && nc >= 0 && nc < level1Map[0].length) {
+                if (level1Map[nr][nc] !== 1 && !visited.has(`${nr},${nc}`)) {
+                    visited.add(`${nr},${nc}`);
+                    queue.push({
+                        r: nr, c: nc, 
+                        path: [...curr.path, { r: nr, c: nc }]
+                    });
+                }
+            }
+        }
+    }
+    return [];
 }
